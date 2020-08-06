@@ -1,7 +1,7 @@
 library(RSelenium)
 library(wdman)
 
-scrapper <- function(keyword, num_jobs, slp_time, verbose = False){
+scrapper <- function(keyword, num_jobs, slp_time, verbose = F){
   # Initialize the driver
   driver <- remoteDriver(
     remoteServerAddr = "localhost",
@@ -19,9 +19,13 @@ scrapper <- function(keyword, num_jobs, slp_time, verbose = False){
   
   #navigate to the url
   driver$navigate(url)
-  jobs <- list()
+  #initialize the matrix
+  jobs <- matrix(, ncol = 12)
+  colnames(jobs) <- c('Job Title','Salary Estimate','Job Description','Rating','Company Name','Location','Size','Founded','Type Of Ownership','Industry','Sector','Revenue')
+  print(dim(jobs)[1])
+  
   #Start looping
-  while(length(jobs) < num_jobs){
+  while(dim(jobs)[1] < num_jobs){
     #Let the page load. Change this number based on your internet speed.
     #Or, wait until the webpage is loaded, instead of hardcoding it.
     Sys.sleep(3)
@@ -48,8 +52,8 @@ scrapper <- function(keyword, num_jobs, slp_time, verbose = False){
     job_buttons <- driver$findElements(using = 'class name', value = 'jl') #jl for job listing
     
     for (job_button in job_buttons) {
-      print(paste('Progress : ', length(jobs),'/',num_jobs))
-      if (length(jobs)>=num_jobs) {
+      print(paste('Progress : ', dim(jobs)[1],'/',num_jobs))
+      if (dim(jobs)[1]>num_jobs) {
         break
       }
       
@@ -59,21 +63,41 @@ scrapper <- function(keyword, num_jobs, slp_time, verbose = False){
       collected_successfully <- FALSE
       while(!collected_successfully){
         tryCatch(expr = {
-          company_name <- driver$findElement(using = 'xpath', value = './/div[@class="employerName"]')['text']
-          location <- driver$findElement(using = 'xpath', value = './/div[@class="location"]')
-          job_title <- driver$findElement(using = 'xpath', value = './/div[contains(@class, "title")]')['text']
-          job_description <- driver$findElement(using = 'xpath', value = './/div[@class="jobDescriptionContent desc"]')
-          collected_successfully <- TRUE
+          company_name <- driver$findElement(using = 'xpath', value = './/div[@class="employerName"]')$getElementText()
         },
           error = function(err){
-            Sys.sleep(5)
+            company_name <- NA
           }
         )
+        tryCatch(expr = {
+          location <- driver$findElement(using = 'xpath', value = './/div[@class="location"]')$getElementText()
+          },
+          error = function(err){
+            location <- NA
+          }
+        )
+        tryCatch(expr = {
+            job_title <- driver$findElement(using = 'xpath', value = './/div[contains(@class, "title")]')$getElementText()
+          },
+          error = function(err){
+            job_title <- NA
+          }
+        )
+        
+        tryCatch(expr = {
+            job_description <- driver$findElement(using = 'xpath', value = './/div[@class="jobDescriptionContent desc"]')$getElementText()
+          },
+          error = function(err){
+            job_description <- NA
+          }
+        )
+
+        collected_successfully <- TRUE
       }
       
       #Salary Estimate
       tryCatch(expr = {
-        salary_estimate <- driver$findElement(using = 'xpath', value = './/span[@class="gray salary"]')
+        salary_estimate <- driver$findElement(using = 'xpath', value = './/span[@class="gray salary"]')$getElementText()
       },
       error = function(err){
         salary_estimate <- -1
@@ -82,7 +106,7 @@ scrapper <- function(keyword, num_jobs, slp_time, verbose = False){
       
       #Rating
       tryCatch(expr = {
-        rating <- driver$findElement(using = 'xpath', value = './/span[@class="rating"]')
+        rating <- driver$findElement(using = 'xpath', value = './/span[@class="rating"]')$getElementText()
       },
       error = function(err){
         rating <- -1
@@ -91,18 +115,134 @@ scrapper <- function(keyword, num_jobs, slp_time, verbose = False){
       
       #printing for debbuging
       if (verbose) {
-        print(job_title)
-       # print(paste('Salary Estimate : ', salary_estimate))
-        #print(paste('Job Description : ', job_description))
-        #print(paste('Rating : ', rating))
-        #print(paste('Company name : ',company_name))
-        #print(paste('Location : ',location))
+        print(paste('Job Title',job_title))
+        print(paste('Salary Estimate : ', salary_estimate))
+        print(paste('Job Description : ', job_description))
+        print(paste('Rating : ', rating))
+        print(paste('Company name : ',company_name))
+        print(paste('Location : ',location))
+        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
       }
       
+      #Going to the Company tab...
+      #clicking on this:
+      #<div class="tab" data-tab-type="overview"><span>Company</span></div>
+      tryCatch(
+        expr = {
+          driver$findElement(using = 'xpath', value = './/div[@class="tab" and @data-tab-type="overview"]')$clickElement()
+          Sys.sleep(1)
+          
+          tryCatch(
+            expr = {
+              size <- driver$findElement(using = 'xpath', value = './/div[@class="infoEntity"]//label[text()="Size"]//following-sibling::*')$getElementText()
+            },
+            error = function(NoSuchElement){
+              size <- -1
+            },
+            finally = {}
+          )
+          
+          tryCatch(
+            expr = {
+              founded <- driver$findElement('xpath','.//div[@class="infoEntity"]//label[text()="Founded"]//following-sibling::*')$getElementText()
+            },
+            error = function(NoSuchElement){
+              founded <- -1
+            },
+            finally = {}
+          )
+          
+          tryCatch(
+            expr = {
+              type_of_ownership <- driver$findElement('xpath','.//div[@class="infoEntity"]//label[text()="Type"]//following-sibling::*')$getElementText()
+            },
+            error = function(NoSuchElement){
+              type_of_ownership <- -1
+            },
+            finally = {}
+          )
+          
+          tryCatch(
+            expr = {
+              industry <- driver$findElement('xpath','.//div[@class="infoEntity"]//label[text()="Industry"]//following-sibling::*')$getElementText()
+            },
+            error = function(NoSuchElement){
+              industry <- -1
+            },
+            finally = {}
+          )
+          
+          tryCatch(
+            expr = {
+              sector <- driver$findElement('xpath','.//div[@class="infoEntity"]//label[text()="Sector"]//following-sibling::*')$getElementText()
+            },
+            error = function(NoSuchElement){
+              sector <- -1
+            },
+            finally = {}
+          )
+          
+          tryCatch(
+            expr = {
+              revenue <- driver$findElement('xpath','.//div[@class="infoEntity"]//label[text()="Revenue"]//following-sibling::*')$getElementText()
+            },
+            error = function(NoSuchElement){
+              revenue <- -1
+            },
+            finally = {}
+          )
+          
+        },
+        error = function(NoSuchElement){
+          #Rarely, some job postings do not have the "Company" tab.
+         # headquarters <- -1
+          size <- -1
+          founded <- -1
+          type_of_ownership <- -1
+          industry <- -1
+          sector <- -1
+          revenue <- -1
+          competitors <- -1
+        },
+        finally = {
+          # for debugging purposes
+          if(verbose){
+           # print(paste('Headquarter',headquarters))
+            print(paste('Size : ', size))
+            print(paste('Founded : ', founded))
+            print(paste('Type Of Ownership : ', type_of_ownership))
+            print(paste('Industry : ',industry))
+            print(paste('Sector : ',sector))
+            print(paste('Revenue : ',revenue))
+            #print(paste('Competitors : ',competitors))
+            print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+          }
+          
+          job <- c(job_title,salary_estimate,job_description,rating,company_name,location,size,founded,type_of_ownership,industry,sector,revenue)
+          jobs <- rbind(jobs,job)
+          print(paste('number of collected jobs is :', dim(jobs)[1]-1))
+        }
+      )
+      #Clicking on the "next page" button
+      if(dim(jobs)[1]+1 %% 30 == 0){
+        tryCatch(
+          expr = {
+            driver$find('xpath','.//li[@class="next"]//a')$clickElement()
+          },
+          error = function(NoSuchElement){
+            print(paste('Scraping terminated before reaching target number of jobs. Needed ',num_jobs, ' got ', dim(jobs)[1],'.'))
+            break
+          },
+          finally = {}
+        )    
+      }
+        
     }
+    
+
   }
-  
-  return(jobs)
+  driver$close()
+  return(as.data.frame.array(jobs,row.names = 1:dim(jobs)[1]))
 }
 
 
